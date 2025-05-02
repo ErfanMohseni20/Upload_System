@@ -22,7 +22,8 @@ class FileUploadRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'file' => ['required' , 'file' , 'mimetypes:image/jpeg,video/mp4,application/zip']
+            'file' => ['required' , 'file' , 'mimetypes:image/jpeg,video/mp4,application/zip'],
+            "name" => ['required' , 'string' , 'max:255'],
         ];
     }
 }

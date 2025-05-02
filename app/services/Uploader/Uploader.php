@@ -3,15 +3,15 @@
 namespace App\Services\Uploader;
 
 use App\Exceptions\FileHasExistsException;
-use App\Models\File as ModelsFile;
-use File;
+use App\Models\File;
 use Illuminate\Http\Request;
 use League\CommonMark\Extension\Footnote\Event\FixOrphanedFootnotesAndRefsListener;
 use PHPUnit\Event\TestData\DataFromDataProvider;
 use Symfony\Component\HttpKernel\ControllerMetadata\ArgumentMetadataFactoryInterface;
 
-class Uploader {
-        /**
+class Uploader
+{
+    /**
      * @var Request
      */
     private $request;
@@ -27,36 +27,42 @@ class Uploader {
      * @var FFMpegService
      */
     private $ffmpeg;
-    public function __construct(Request $request , StorageManager $storageManager , FFMpegService $ffmpeg) {
-        $this->request = $request ;
+    public function __construct(Request $request, StorageManager $storageManager, FFMpegService $ffmpeg)
+    {
+        $this->request = $request;
         $this->storageManager = $storageManager;
-        $this->file = $request->file('file'); 
+        $this->file = $request->file('file');
         $this->ffmpeg = $ffmpeg;
     }
-    public function upload() {
+    public function upload()
+    {
         if ($this->isFileExists()) throw new FileHasExistsException('File has already uploaded');
         $this->putFileIntoStorage();
         return $this->saveFileIntoDatabase();
-
     }
-    
+
     private function putFileIntoStorage()
     {
         $method = $this->isPrivate() ? 'putFileAsPrivate' : 'putFileAsPublic';
 
-        $this->storageManager->$method($this->file->getClientOriginalName(), $this->file,$this->getType());
-
+        $this->storageManager->$method($this->getFinalFileName(), $this->file, $this->getType());
     }
-    private function saveFileIntoDatabase(){
-        $file = new \App\Models\File([
-            'name' => $this->file->getClientOriginalName(),
+    private function saveFileIntoDatabase()
+    {
+        $finalName = $this->getFinalFileName();
+        $relativePath = $this->storageManager->getRelativePathOf($finalName, $this->getType());
+    
+        $file = new File([
+            'name' => $relativePath, 
             'size' => $this->file->getSize(),
             'type' => $this->getType(),
             'is_private' => $this->isPrivate()
         ]);
-        $file->time = $this->getTime($file);
+    
+        // $file->time = $this->getTime($file);
         $file->save();
     }
+    
 
     private function isPrivate()
     {
@@ -73,14 +79,25 @@ class Uploader {
         $mimeType = $this->file->getClientMimeType();
         return $types[$mimeType] ?? 'unknown';
     }
-    private function getTime(\App\Models\File $file) {
-        if(!$file->isMedia()) {
-            return null;
-        }
-        return $this->ffmpeg->durationOf($file->absolutePath());
-    }
+    // private function getTime(File $file)
+    // {
+    //     if (!$file->isMedia()) {
+    //         return null;
+    //     }
+    //     return $this->ffmpeg->durationOf($file->absolutePath());
+    // }
     private function isFileExists()
     {
-       return $this->storageManager->isFileExists($this->file->getClientOriginalName(), $this->getType(), $this->isPrivate());
+        return $this->storageManager->isFileExists($this->file->getClientOriginalName(), $this->getType(), $this->isPrivate());
+    }
+    private function getFinalFileName(): string
+    {
+        $originalExtension = $this->file->getClientOriginalExtension();
+        $name = $this->request->name;
+        if (!str_ends_with($name, '.' . $originalExtension)) {
+            $name .= '.' . $originalExtension;
+        }
+
+        return $name;
     }
 }

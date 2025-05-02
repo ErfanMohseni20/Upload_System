@@ -29,6 +29,10 @@
                         </div>
                     </div>
                     <div class="form-group">
+                        <label for="name">اسم فایل </label>
+                        <input type="text" name="name" class="form-control">
+                    </div>
+                    <div class="form-group">
                         <div class='text-center'>
                             <button type="submit" class="btn btn-primary">آپلود فایل</button>
                         </div>
